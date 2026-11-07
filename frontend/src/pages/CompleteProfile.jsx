@@ -11,20 +11,13 @@ export default function CompleteProfile() {
   const [error, setError]             = useState('');
   const [loading, setLoading]         = useState(false);
 
-  // The one-time JWT stored by GoogleCallback — used as Bearer so the
-  // httpOnly cookie (just set a moment ago) doesn't need to propagate first.
-  const setupToken = sessionStorage.getItem('ot_setup_token');
-
-  const postProfile = (body) => {
-    const headers = setupToken ? { Authorization: `Bearer ${setupToken}` } : {};
-    return api.post('/auth/complete-profile', body, { headers });
-  };
-
+  // api.js interceptor already sends Authorization: Bearer <ot_token> on every request.
+  // No custom header needed here — just call api.post directly.
   const finish = async (body) => {
     setError('');
     setLoading(true);
     try {
-      const res = await postProfile(body);
+      const res = await api.post('/auth/complete-profile', body);
       sessionStorage.removeItem('ot_setup_token');
       setUser(res.data, res.data.token);
       navigate('/', { replace: true });
