@@ -41,7 +41,7 @@ function layout(content) {
           <p style="margin:0 0 6px;font-size:12px;color:#9ca3af;">
             This email was sent by <a href="${APP_URL}" style="color:#6366f1;text-decoration:none;font-weight:600;">SHIRA OT Tracker</a>
           </p>
-          <p style="margin:0;font-size:11px;color:#c1c7d0;">Made by <strong>SHIRA AI</strong> &nbsp;·&nbsp; <a href="${APP_URL}" style="color:#9ca3af;text-decoration:underline;">shiraai.in</a></p>
+          <p style="margin:0;font-size:13px;color:#6b7280;">Made by <a href="https://shiraai.in" target="_blank" style="color:#6366f1;text-decoration:none;font-weight:700;font-size:14px;">SHIRA AI</a></p>
         </td></tr>
 
       </table>
@@ -145,7 +145,7 @@ async function sendWelcomeEmail({ to, name }) {
       </table>
 
       <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center;line-height:1.6;">
-        If you have any questions, reach out at <a href="mailto:support@shiraai.in" style="color:#6366f1;text-decoration:none;">support@shiraai.in</a>
+        If you have any questions, reach out at <a href="mailto:connect.shiraai@gmail.com" style="color:#6366f1;text-decoration:none;">connect.shiraai@gmail.com</a>
       </p>
     </td></tr>`;
 
