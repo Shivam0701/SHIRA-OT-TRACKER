@@ -207,7 +207,7 @@ router.post('/google/token', (req, res) => {
   }
 });
 
-// ── POST /api/auth/complete-profile — for Google users adding phone/company ──
+// ── POST /api/auth/complete-profile — for Google users adding company name ────
 router.post('/complete-profile', async (req, res) => {
   let token = req.cookies?.token;
   if (!token && req.headers.authorization?.startsWith('Bearer ')) {
@@ -222,14 +222,12 @@ router.post('/complete-profile', async (req, res) => {
     return res.status(401).json({ error: 'Invalid or expired token.' });
   }
 
-  const { phone, companyName } = req.body;
-  if (!phone?.trim()) return res.status(400).json({ error: 'Contact number is required.' });
+  const { companyName } = req.body;
 
   try {
     const user = await prisma.user.update({
       where: { id: payload.userId },
       data: {
-        phone:       phone.trim(),
         companyName: companyName?.trim() || null,
       },
     });

@@ -1,32 +1,35 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Phone, Building2, AlertCircle, CheckCircle } from 'lucide-react';
+import { Building2, AlertCircle, CheckCircle } from 'lucide-react';
 import api from '../api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 
 export default function CompleteProfile() {
   const { user, setUser } = useAuth();
   const navigate          = useNavigate();
-  const [form, setForm]   = useState({ phone: '', companyName: '' });
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [companyName, setCompanyName] = useState('');
+  const [error, setError]             = useState('');
+  const [loading, setLoading]         = useState(false);
 
-  const set = (k, v) => { setForm(f => ({ ...f, [k]: v })); setError(''); };
+  // The one-time JWT stored by GoogleCallback — used as Bearer so the
+  // httpOnly cookie (just set a moment ago) doesn't need to propagate first.
+  const setupToken = sessionStorage.getItem('ot_setup_token');
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!form.phone.trim()) { setError('Contact number is required.'); return; }
+  const postProfile = (body) => {
+    const headers = setupToken ? { Authorization: `Bearer ${setupToken}` } : {};
+    return api.post('/auth/complete-profile', body, { headers });
+  };
+
+  const finish = async (body) => {
+    setError('');
     setLoading(true);
     try {
-      const res = await api.post('/auth/complete-profile', {
-        phone:       form.phone.trim(),
-        companyName: form.companyName.trim() || undefined,
-      });
+      const res = await postProfile(body);
+      sessionStorage.removeItem('ot_setup_token');
       setUser(res.data);
       navigate('/', { replace: true });
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to save. Please try again.');
-    } finally {
       setLoading(false);
     }
   };
@@ -44,25 +47,10 @@ export default function CompleteProfile() {
 
         <h1 className="auth-title">One last step</h1>
         <p className="auth-sub">
-          Hi {user?.name?.split(' ')[0] || 'there'}! Just need a couple more details to complete your profile.
+          Hi {user?.name?.split(' ')[0] || 'there'}! Optionally add your company name.
         </p>
 
-        <form onSubmit={handleSubmit} className="auth-form">
-          <div className="auth-field">
-            <label>Contact Number</label>
-            <div className="auth-input-wrap">
-              <Phone size={15} className="auth-input-icon" />
-              <input
-                type="tel"
-                placeholder="+91 9876543210"
-                value={form.phone}
-                onChange={e => set('phone', e.target.value)}
-                autoFocus
-                disabled={loading}
-              />
-            </div>
-          </div>
-
+        <form onSubmit={e => { e.preventDefault(); finish({ companyName: companyName.trim() || undefined }); }} className="auth-form">
           <div className="auth-field">
             <label>
               Company Name{' '}
@@ -73,8 +61,9 @@ export default function CompleteProfile() {
               <input
                 type="text"
                 placeholder="Your company"
-                value={form.companyName}
-                onChange={e => set('companyName', e.target.value)}
+                value={companyName}
+                onChange={e => { setCompanyName(e.target.value); setError(''); }}
+                autoFocus
                 disabled={loading}
               />
             </div>
@@ -90,6 +79,16 @@ export default function CompleteProfile() {
           <button type="submit" className="btn btn-primary auth-submit" disabled={loading}>
             <CheckCircle size={16} />
             {loading ? 'Saving…' : 'Complete Setup'}
+          </button>
+
+          <button
+            type="button"
+            className="btn btn-outline auth-submit"
+            style={{ marginTop: '8px' }}
+            onClick={() => finish({})}
+            disabled={loading}
+          >
+            Skip for now
           </button>
         </form>
       </div>

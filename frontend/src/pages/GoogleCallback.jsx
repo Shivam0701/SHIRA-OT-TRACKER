@@ -24,8 +24,10 @@ export default function GoogleCallback() {
     api.post('/auth/google/token', { token })
       .then(res => {
         setUser(res.data);
-        // If Google user hasn't filled phone yet, go to profile completion
+        // Store token temporarily so CompleteProfile can use it as Bearer
+        // (httpOnly cookie may not propagate in time for the immediate next POST)
         if (res.data.needsProfile) {
+          sessionStorage.setItem('ot_setup_token', token);
           navigate('/complete-profile', { replace: true });
         } else {
           navigate('/', { replace: true });
