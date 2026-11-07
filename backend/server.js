@@ -93,8 +93,9 @@ passport.use(new GoogleStrategy(
 
 app.use(passport.initialize());
 
-// ── Health check ──────────────────────────────────────────────────────────────
-app.get('/health', (_, res) => res.json({ status: 'ok', ts: new Date().toISOString() }));
+// ── Health checks ─────────────────────────────────────────────────────────────
+app.get('/health',  (_, res) => res.json({ status: 'ok', ts: new Date().toISOString() }));
+app.get('/healthz', (_, res) => res.json({ status: 'ok', service: 'SHIRA OT Tracker' }));
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 app.use('/api/auth',     authRoutes);
