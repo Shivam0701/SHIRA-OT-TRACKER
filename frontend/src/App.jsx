@@ -14,6 +14,8 @@ import GoogleCallback from './pages/GoogleCallback.jsx';
 import CompleteProfile from './pages/CompleteProfile.jsx';
 import AdminDashboard from './pages/AdminDashboard.jsx';
 import AdminPanel from './pages/AdminPanel.jsx';
+import ForgotPassword from './pages/ForgotPassword.jsx';
+import ResetPassword from './pages/ResetPassword.jsx';
 
 // ── Shared brand block ────────────────────────────────────────────────────────
 function SidebarBrand({ isAdmin }) {
@@ -212,13 +214,15 @@ function AuthShell({ theme, onThemeToggle }) {
         <Route path="/register"         element={<Register />} />
         <Route path="/auth/callback"    element={<GoogleCallback />} />
         <Route path="/complete-profile" element={<CompleteProfile />} />
+        <Route path="/forgot-password"  element={<ForgotPassword />} />
+        <Route path="/reset-password"   element={<ResetPassword />} />
       </Routes>
     </>
   );
 }
 
 // ── Root router ───────────────────────────────────────────────────────────────
-const AUTH_PATHS = ['/login', '/register', '/auth/callback', '/complete-profile'];
+const AUTH_PATHS = ['/login', '/register', '/auth/callback', '/complete-profile', '/forgot-password', '/reset-password'];
 
 function RootRouter({ theme, onThemeToggle }) {
   const { user, loading } = useAuth();
