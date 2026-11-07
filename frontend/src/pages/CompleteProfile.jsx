@@ -31,7 +31,7 @@ export default function CompleteProfile() {
     <div className="auth-page">
       <div className="auth-card">
         <div className="auth-logo">
-          <span style={{ fontSize: '28px' }}>⏱</span>
+          <img src="/logo.svg" alt="SHIRA OT" width={44} height={44} style={{ borderRadius: 10 }} />
           <div>
             <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--primary)' }}>SHIRA OT</div>
             <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Overtime Tracker</div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { LogIn, Mail, Lock, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
+import Logo from '../components/Logo.jsx';
 
 const BACKEND = import.meta.env.VITE_API_URL || '';
 
@@ -45,11 +46,7 @@ export default function Login() {
       <div className="auth-card">
         {/* Logo */}
         <div className="auth-logo">
-          <span style={{ fontSize: '28px' }}>⏱</span>
-          <div>
-            <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--primary)' }}>SHIRA OT</div>
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Overtime Tracker</div>
-          </div>
+          <Logo size={48} variant="auth" />
         </div>
 
         <h1 className="auth-title">Welcome back</h1>

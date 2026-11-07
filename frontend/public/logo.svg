@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <!-- Background -->
+  <rect width="512" height="512" rx="80" fill="#0d1b2e"/>
+
+  <!-- S shape - upper white stroke -->
+  <path d="M320 80 C420 80 450 140 440 200 C430 250 370 270 300 290 C230 310 160 330 150 390 C140 445 180 500 280 500"
+        stroke="white" stroke-width="52" stroke-linecap="round" fill="none"/>
+
+  <!-- S shape - lower blue stroke -->
+  <path d="M190 430 C190 430 230 500 330 490"
+        stroke="#2196F3" stroke-width="52" stroke-linecap="round" fill="none"/>
+
+  <!-- S shape - upper blue accent -->
+  <path d="M195 80 C195 80 255 72 320 80"
+        stroke="#2196F3" stroke-width="42" stroke-linecap="round" fill="none"/>
+
+  <!-- Calendar body -->
+  <rect x="190" y="195" width="160" height="140" rx="14" fill="white"/>
+  <!-- Calendar top bar -->
+  <rect x="190" y="195" width="160" height="36" rx="14" fill="white"/>
+  <rect x="190" y="213" width="160" height="18" fill="white"/>
+  <!-- Calendar hooks -->
+  <rect x="228" y="178" width="16" height="30" rx="8" fill="white"/>
+  <rect x="268" y="178" width="16" height="30" rx="8" fill="white"/>
+  <!-- Calendar grid -->
+  <rect x="200" y="245" width="22" height="22" rx="4" fill="#0d1b2e"/>
+  <rect x="231" y="245" width="22" height="22" rx="4" fill="#0d1b2e"/>
+  <rect x="262" y="245" width="22" height="22" rx="4" fill="#0d1b2e"/>
+  <rect x="293" y="245" width="22" height="22" rx="4" fill="#0d1b2e"/>
+  <rect x="200" y="276" width="22" height="22" rx="4" fill="#0d1b2e"/>
+  <rect x="231" y="276" width="22" height="22" rx="4" fill="#0d1b2e"/>
+  <rect x="262" y="276" width="22" height="22" rx="4" fill="#0d1b2e"/>
+
+  <!-- Clock circle (overlapping bottom-right of calendar) -->
+  <circle cx="322" cy="320" r="40" fill="#0d1b2e"/>
+  <circle cx="322" cy="320" r="34" fill="white"/>
+  <!-- Clock hands -->
+  <line x1="322" y1="320" x2="322" y2="297" stroke="#0d1b2e" stroke-width="5" stroke-linecap="round"/>
+  <line x1="322" y1="320" x2="338" y2="328" stroke="#0d1b2e" stroke-width="5" stroke-linecap="round"/>
+  <!-- Clock center dot -->
+  <circle cx="322" cy="320" r="4" fill="#0d1b2e"/>
+</svg>

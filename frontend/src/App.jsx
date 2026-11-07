@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, NavLink, useLocation, useNavigate, Naviga
 import { LayoutDashboard, Clock, History, Sun, Moon, LogOut, Calculator, User, ShieldCheck, Users } from 'lucide-react';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
+import Logo from './components/Logo.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Tracker from './pages/Tracker.jsx';
 import OTHistory from './pages/OTHistory.jsx';
@@ -25,8 +26,11 @@ function UserSidebar() {
   return (
     <aside className="sidebar">
       <div className="sidebar-logo">
-        <div className="sidebar-logo-text">⏱ SHIRA OT</div>
-        <div className="sidebar-logo-sub">Overtime Tracker</div>
+        <img src="/logo.svg" alt="SHIRA OT" width={32} height={32} style={{ borderRadius: 7, flexShrink: 0 }} />
+        <div>
+          <div className="sidebar-logo-text">SHIRA OT</div>
+          <div className="sidebar-logo-sub">Overtime Tracker</div>
+        </div>
       </div>
       <nav className="sidebar-nav">
         {navItems.map(({ to, icon, label }) => (
@@ -49,8 +53,11 @@ function AdminSidebar() {
   return (
     <aside className="sidebar">
       <div className="sidebar-logo">
-        <div className="sidebar-logo-text">⏱ SHIRA OT</div>
-        <div className="sidebar-logo-sub" style={{ color: 'var(--primary)', fontWeight: 700 }}>Admin</div>
+        <img src="/logo.svg" alt="SHIRA OT" width={32} height={32} style={{ borderRadius: 7, flexShrink: 0 }} />
+        <div>
+          <div className="sidebar-logo-text">SHIRA OT</div>
+          <div className="sidebar-logo-sub" style={{ color: 'var(--primary)', fontWeight: 700 }}>Admin Panel</div>
+        </div>
       </div>
       <nav className="sidebar-nav">
         {navItems.map(({ to, icon, label }) => (
