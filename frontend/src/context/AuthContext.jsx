@@ -1,0 +1,52 @@
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import api from '../api.js';
+
+const AuthContext = createContext(null);
+
+export function AuthProvider({ children }) {
+  const [user, setUser]       = useState(null);   // { id, name, email }
+  const [loading, setLoading] = useState(true);   // checking session on mount
+
+  // Check if already logged in
+  const checkAuth = useCallback(async () => {
+    try {
+      const res = await api.get('/auth/me');
+      setUser(res.data);
+    } catch {
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { checkAuth(); }, [checkAuth]);
+
+  const login = async (email, password) => {
+    const res = await api.post('/auth/login', { email, password });
+    setUser(res.data);
+    return res.data;
+  };
+
+  const register = async (name, email, password) => {
+    const res = await api.post('/auth/register', { name, email, password });
+    setUser(res.data);
+    return res.data;
+  };
+
+  const logout = async () => {
+    await api.post('/auth/logout');
+    setUser(null);
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuth() {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used inside AuthProvider');
+  return ctx;
+}

@@ -1,0 +1,82 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL_POOLED")
+  directUrl = env("DATABASE_URL")
+}
+
+model User {
+  id          Int         @id @default(autoincrement())
+  name        String
+  email       String      @unique
+  password    String?
+  phone       String?
+  companyName String?
+  role        String      @default("user")   // "user" | "admin"
+  isActive    Boolean     @default(true)
+  googleId    String?     @unique
+  avatar      String?
+  authProvider String     @default("email")  // "email" | "google"
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  sessions    OtSession[]
+  otpTokens   OtpToken[]
+  auditLogs   AuditLog[]  @relation("actor")
+  targetLogs  AuditLog[]  @relation("target")
+
+  @@index([email])
+  @@index([role])
+}
+
+model OtSession {
+  id              Int      @id @default(autoincrement())
+  userId          Int
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date            String
+  startTime       String
+  endTime         String?
+  durationMinutes Int?
+  status          String   @default("active")
+  remarks         String   @default("")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+  @@index([date])
+  @@index([status])
+  @@index([userId, status])
+}
+
+model OtpToken {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String
+  purpose   String   @default("login")
+  attempts  Int      @default(0)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  actorId   Int?
+  actor     User?    @relation("actor",  fields: [actorId], references: [id], onDelete: SetNull)
+  targetId  Int?
+  target    User?    @relation("target", fields: [targetId], references: [id], onDelete: SetNull)
+  event     String
+  ip        String?
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  @@index([actorId])
+  @@index([event])
+  @@index([createdAt])
+}
