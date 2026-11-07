@@ -19,7 +19,14 @@ const COOKIE_OPTS = {
 
 function signToken(user) {
   return jwt.sign(
-    { userId: user.id, email: user.email, name: user.name, role: user.role },
+    {
+      userId:       user.id,
+      email:        user.email,
+      name:         user.name,
+      role:         user.role,
+      // Flag for Google users who haven't completed their profile (phone missing)
+      needsProfile: user.authProvider === 'google' && !user.phone ? true : undefined,
+    },
     process.env.JWT_SECRET,
     { expiresIn: '7d' }
   );
@@ -121,7 +128,13 @@ router.get('/me', (req, res) => {
 
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
-    res.json({ id: payload.userId, name: payload.name, email: payload.email, role: payload.role });
+    res.json({
+      id:           payload.userId,
+      name:         payload.name,
+      email:        payload.email,
+      role:         payload.role,
+      needsProfile: payload.needsProfile || false,
+    });
   } catch {
     res.status(401).json({ error: 'Invalid token' });
   }
@@ -170,16 +183,69 @@ router.post('/google/token', (req, res) => {
 
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
-    // Re-sign a fresh 7-day cookie token
     const freshToken = jwt.sign(
-      { userId: payload.userId, email: payload.email, name: payload.name, role: payload.role },
+      {
+        userId:       payload.userId,
+        email:        payload.email,
+        name:         payload.name,
+        role:         payload.role,
+        needsProfile: payload.needsProfile || undefined,
+      },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
     res.cookie('token', freshToken, COOKIE_OPTS);
-    res.json({ id: payload.userId, name: payload.name, email: payload.email, role: payload.role });
+    res.json({
+      id:           payload.userId,
+      name:         payload.name,
+      email:        payload.email,
+      role:         payload.role,
+      needsProfile: payload.needsProfile || false,
+    });
   } catch {
     res.status(401).json({ error: 'Invalid or expired token.' });
+  }
+});
+
+// ── POST /api/auth/complete-profile — for Google users adding phone/company ──
+router.post('/complete-profile', async (req, res) => {
+  let token = req.cookies?.token;
+  if (!token && req.headers.authorization?.startsWith('Bearer ')) {
+    token = req.headers.authorization.split(' ')[1];
+  }
+  if (!token) return res.status(401).json({ error: 'Not authenticated.' });
+
+  let payload;
+  try {
+    payload = jwt.verify(token, process.env.JWT_SECRET);
+  } catch {
+    return res.status(401).json({ error: 'Invalid or expired token.' });
+  }
+
+  const { phone, companyName } = req.body;
+  if (!phone?.trim()) return res.status(400).json({ error: 'Contact number is required.' });
+
+  try {
+    const user = await prisma.user.update({
+      where: { id: payload.userId },
+      data: {
+        phone:       phone.trim(),
+        companyName: companyName?.trim() || null,
+      },
+    });
+
+    // Re-issue token WITHOUT needsProfile flag
+    const freshToken = jwt.sign(
+      { userId: user.id, email: user.email, name: user.name, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+    res.cookie('token', freshToken, COOKIE_OPTS);
+    await audit('profile_complete', { actorId: user.id, ip: getIp(req), meta: { email: user.email } });
+    res.json({ id: user.id, name: user.name, email: user.email, role: user.role, needsProfile: false });
+  } catch (err) {
+    console.error('Complete profile error:', err.message);
+    res.status(500).json({ error: 'Failed to save profile. Please try again.' });
   }
 });
 

@@ -10,6 +10,7 @@ import OTCalculator from './pages/Calculator.jsx';
 import Login from './pages/Login.jsx';
 import Register from './pages/Register.jsx';
 import GoogleCallback from './pages/GoogleCallback.jsx';
+import CompleteProfile from './pages/CompleteProfile.jsx';
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 function Sidebar({ onClose }) {
@@ -81,26 +82,15 @@ const PAGE_TITLES = {
 };
 
 // ── App shell (authenticated layout) ─────────────────────────────────────────
-function AppShell() {
-  const location = useLocation();
-  const [theme, setTheme] = useState(() => localStorage.getItem('ot-theme') || 'light');
-
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('ot-theme', theme);
-  }, [theme]);
-
+function AppShell({ theme, onThemeToggle }) {
+  const location  = useLocation();
   const pageTitle = PAGE_TITLES[location.pathname] || 'SHIRA OT Tracker';
 
   return (
     <div className="app-layout">
       <Sidebar />
       <div className="main-content">
-        <Header
-          theme={theme}
-          onThemeToggle={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
-          pageTitle={pageTitle}
-        />
+        <Header theme={theme} onThemeToggle={onThemeToggle} pageTitle={pageTitle} />
         <main className="page-body">
           <Routes>
             <Route path="/"           element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
@@ -118,40 +108,55 @@ function AppShell() {
 }
 
 // ── Auth layout (no sidebar) ──────────────────────────────────────────────────
-function AuthShell() {
-  const [theme, setTheme] = useState(() => localStorage.getItem('ot-theme') || 'light');
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('ot-theme', theme);
-  }, [theme]);
-
+function AuthShell({ theme, onThemeToggle }) {
   return (
     <>
-      <button className="theme-toggle auth-theme-btn" onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+      <button className="theme-toggle auth-theme-btn" onClick={onThemeToggle}
         style={{ position: 'fixed', top: '16px', right: '16px', zIndex: 999 }}>
         {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
       </button>
       <Routes>
-        <Route path="/login"         element={<Login />} />
-        <Route path="/register"      element={<Register />} />
-        <Route path="/auth/callback" element={<GoogleCallback />} />
+        <Route path="/login"            element={<Login />} />
+        <Route path="/register"         element={<Register />} />
+        <Route path="/auth/callback"    element={<GoogleCallback />} />
+        <Route path="/complete-profile" element={<CompleteProfile />} />
       </Routes>
     </>
   );
 }
 
 // ── Root router ───────────────────────────────────────────────────────────────
-function RootRouter() {
+const AUTH_PATHS = ['/login', '/register', '/auth/callback', '/complete-profile'];
+
+function RootRouter({ theme, onThemeToggle }) {
   const location = useLocation();
-  const isAuth = ['/login', '/register', '/auth/callback'].includes(location.pathname);
-  return isAuth ? <AuthShell /> : <AppShell />;
+  const isAuth   = AUTH_PATHS.includes(location.pathname);
+  return isAuth
+    ? <AuthShell theme={theme} onThemeToggle={onThemeToggle} />
+    : <AppShell  theme={theme} onThemeToggle={onThemeToggle} />;
 }
 
+// ── Theme initialiser (runs once, outside React, to avoid flash) ──────────────
+const savedTheme = localStorage.getItem('ot-theme') || 'light';
+document.documentElement.setAttribute('data-theme', savedTheme);
+
 export default function App() {
+  // Single source of truth for theme — lives at the very top
+  const [theme, setTheme] = useState(savedTheme);
+
+  const toggleTheme = () => {
+    setTheme(t => {
+      const next = t === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('ot-theme', next);
+      return next;
+    });
+  };
+
   return (
     <BrowserRouter>
       <AuthProvider>
-        <RootRouter />
+        <RootRouter theme={theme} onThemeToggle={toggleTheme} />
       </AuthProvider>
     </BrowserRouter>
   );

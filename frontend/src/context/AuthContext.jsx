@@ -4,10 +4,9 @@ import api from '../api.js';
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser]       = useState(null);   // { id, name, email }
-  const [loading, setLoading] = useState(true);   // checking session on mount
+  const [user, setUser]       = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // Check if already logged in
   const checkAuth = useCallback(async () => {
     try {
       const res = await api.get('/auth/me');
@@ -38,8 +37,11 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
+  // Google users who haven't filled phone yet have needsProfile=true in their JWT payload
+  const needsProfile = user?.needsProfile === true;
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, setUser }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, setUser, needsProfile }}>
       {children}
     </AuthContext.Provider>
   );

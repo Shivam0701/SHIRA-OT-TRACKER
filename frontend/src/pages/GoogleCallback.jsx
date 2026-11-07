@@ -3,21 +3,11 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 
-/**
- * /auth/callback — Landing page after Google OAuth redirect.
- *
- * Why this exists:
- *   The backend cannot set a cross-origin httpOnly cookie during a browser
- *   redirect (onrender.com → vercel.app). The browser silently drops it.
- *   Instead the backend embeds a short-lived JWT in the redirect URL.
- *   This page picks it up, POSTs it to /api/auth/google/token (same-origin
- *   XHR so cookies work), and the backend responds with Set-Cookie + user data.
- */
 export default function GoogleCallback() {
   const [searchParams] = useSearchParams();
   const navigate       = useNavigate();
   const { setUser }    = useAuth();
-  const called         = useRef(false); // prevent StrictMode double-fire
+  const called         = useRef(false);
 
   useEffect(() => {
     if (called.current) return;
@@ -34,7 +24,12 @@ export default function GoogleCallback() {
     api.post('/auth/google/token', { token })
       .then(res => {
         setUser(res.data);
-        navigate('/', { replace: true });
+        // If Google user hasn't filled phone yet, go to profile completion
+        if (res.data.needsProfile) {
+          navigate('/complete-profile', { replace: true });
+        } else {
+          navigate('/', { replace: true });
+        }
       })
       .catch(() => {
         navigate('/login?error=google_failed', { replace: true });
