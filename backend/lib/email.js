@@ -2,7 +2,7 @@ const { Resend } = require('resend');
 
 const resend  = new Resend(process.env.RESEND_API_KEY);
 const FROM    = process.env.EMAIL_FROM || 'SHIRA OT Tracker <noreply@mail.shiraai.in>';
-const APP_URL = process.env.FRONTEND_URL || 'https://shira-ot-tracker.vercel.app';
+const APP_URL = process.env.FRONTEND_URL || 'https://ottracker.shiraai.in';
 
 // ── Shared layout wrapper ─────────────────────────────────────────────────────
 function layout(content) {

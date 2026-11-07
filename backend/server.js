@@ -18,7 +18,9 @@ const PORT   = process.env.PORT || 3001;
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:4173',
-  process.env.FRONTEND_URL,
+  'https://shira-ot-tracker.vercel.app',   // legacy Vercel domain
+  'https://ottracker.shiraai.in',           // primary custom domain
+  process.env.FRONTEND_URL,                 // env override (if set)
 ].filter(Boolean);
 
 app.use(cors({
