@@ -15,6 +15,25 @@ import CompleteProfile from './pages/CompleteProfile.jsx';
 import AdminDashboard from './pages/AdminDashboard.jsx';
 import AdminPanel from './pages/AdminPanel.jsx';
 
+// ── Shared brand block ────────────────────────────────────────────────────────
+function SidebarBrand({ isAdmin }) {
+  return (
+    <div className="sidebar-logo">
+      <div className="sidebar-brand">
+        <div className="sidebar-brand-icon">
+          <img src="/logo.svg" alt="SHIRA OT" width={44} height={44} style={{ borderRadius: 8, display: 'block' }} />
+        </div>
+        <div style={{ textAlign: 'center' }}>
+          <div className="sidebar-brand-name">SHIRA OT</div>
+          <div className={`sidebar-brand-sub${isAdmin ? ' admin' : ''}`}>
+            {isAdmin ? 'Admin Panel' : 'Overtime Tracker'}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── User Sidebar ──────────────────────────────────────────────────────────────
 function UserSidebar() {
   const navItems = [
@@ -25,13 +44,7 @@ function UserSidebar() {
   ];
   return (
     <aside className="sidebar">
-      <div className="sidebar-logo">
-        <img src="/logo.svg" alt="SHIRA OT" width={32} height={32} style={{ borderRadius: 7, flexShrink: 0 }} />
-        <div>
-          <div className="sidebar-logo-text">SHIRA OT</div>
-          <div className="sidebar-logo-sub">Overtime Tracker</div>
-        </div>
-      </div>
+      <SidebarBrand isAdmin={false} />
       <nav className="sidebar-nav">
         {navItems.map(({ to, icon, label }) => (
           <NavLink key={to} to={to} end={to === '/'}
@@ -52,13 +65,7 @@ function AdminSidebar() {
   ];
   return (
     <aside className="sidebar">
-      <div className="sidebar-logo">
-        <img src="/logo.svg" alt="SHIRA OT" width={32} height={32} style={{ borderRadius: 7, flexShrink: 0 }} />
-        <div>
-          <div className="sidebar-logo-text">SHIRA OT</div>
-          <div className="sidebar-logo-sub" style={{ color: 'var(--primary)', fontWeight: 700 }}>Admin Panel</div>
-        </div>
-      </div>
+      <SidebarBrand isAdmin={true} />
       <nav className="sidebar-nav">
         {navItems.map(({ to, icon, label }) => (
           <NavLink key={to} to={to} end

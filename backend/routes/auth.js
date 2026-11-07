@@ -44,11 +44,10 @@ function sendAuth(res, statusCode, userData, token) {
 
 // ── POST /api/auth/register ───────────────────────────────────────────────────
 router.post('/register', async (req, res) => {
-  const { name, email, password, phone, companyName } = req.body;
+  const { name, email, password, companyName } = req.body;
 
   if (!name?.trim())    return res.status(400).json({ error: 'Full name is required.' });
   if (!email?.trim())   return res.status(400).json({ error: 'Email is required.' });
-  if (!phone?.trim())   return res.status(400).json({ error: 'Contact number is required.' });
   if (!password)        return res.status(400).json({ error: 'Password is required.' });
   if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters.' });
 
@@ -68,7 +67,6 @@ router.post('/register', async (req, res) => {
         name:        name.trim(),
         email:       email.toLowerCase(),
         password:    hashed,
-        phone:       phone.trim(),
         companyName: companyName?.trim() || null,
         role,
         authProvider: 'email',
