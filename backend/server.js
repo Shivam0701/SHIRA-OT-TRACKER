@@ -50,47 +50,42 @@ passport.use(new GoogleStrategy(
 
       if (!email) return done(new Error('No email from Google'), null);
 
-      // Try to find existing user by googleId first, then by email
-      let user = await prisma.user.findFirst({
-        where: { OR: [{ googleId }, { email }] },
-      });
+      // Use raw SQL — avoids Prisma client/schema version mismatch on Render
+      const rows = await prisma.$queryRaw`
+        SELECT id, name, email, role, "isActive", "authProvider", phone
+        FROM "User"
+        WHERE "googleId" = ${googleId} OR email = ${email}
+        LIMIT 1
+      `;
 
-      if (user) {
-        // Link googleId + update avatar, preserve existing role
-        user = await prisma.user.update({
-          where: { id: user.id },
-          data: {
-            googleId,
-            avatar,
-            authProvider: 'google',
-          },
-        });
-        // Ensure admin role is applied if this is the admin email
-        if (email === ADMIN_EMAIL && user.role !== 'admin') {
-          user = await prisma.user.update({
-            where: { id: user.id },
-            data:  { role: 'admin' },
-          });
-        }
+      let user;
+
+      if (rows.length > 0) {
+        const existing = rows[0];
+        // Ensure admin email always gets admin role
+        const role = email === ADMIN_EMAIL ? 'admin' : existing.role;
+        await prisma.$executeRaw`
+          UPDATE "User"
+          SET "googleId" = ${googleId}, avatar = ${avatar},
+              "authProvider" = 'google', role = ${role}
+          WHERE id = ${existing.id}
+        `;
+        user = { ...existing, googleId, avatar, authProvider: 'google', role };
       } else {
-        // New user — create account
+        // New user
         const role = email === ADMIN_EMAIL ? 'admin' : 'user';
-        user = await prisma.user.create({
-          data: {
-            name,
-            email,
-            googleId,
-            avatar,
-            role,
-            authProvider: 'google',
-            // password is null for Google users
-          },
-        });
+        const created = await prisma.$queryRaw`
+          INSERT INTO "User" (name, email, "googleId", avatar, role, "authProvider", "isActive", "createdAt", "updatedAt")
+          VALUES (${name}, ${email}, ${googleId}, ${avatar}, ${role}, 'google', true, NOW(), NOW())
+          RETURNING id, name, email, role, "isActive", "authProvider", phone
+        `;
+        user = created[0];
       }
 
       if (!user.isActive) return done(null, false);
       return done(null, user);
     } catch (err) {
+      console.error('[Google OAuth] Strategy error:', err.message);
       return done(err, null);
     }
   }
