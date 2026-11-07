@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, useLocation, useNavigate, Navigate } from 'react-router-dom';
-import { LayoutDashboard, Clock, History, Sun, Moon, LogOut, Calculator, User, ShieldCheck, Users } from 'lucide-react';
+import { LayoutDashboard, Clock, History, Sun, Moon, LogOut, Calculator, User, ShieldCheck, Users, Menu, X } from 'lucide-react';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import Logo from './components/Logo.jsx';
@@ -35,7 +35,7 @@ function SidebarBrand({ isAdmin }) {
 }
 
 // ── User Sidebar ──────────────────────────────────────────────────────────────
-function UserSidebar() {
+function UserSidebar({ open, onClose }) {
   const navItems = [
     { to: '/',           icon: <LayoutDashboard size={17} />, label: 'Dashboard' },
     { to: '/tracker',    icon: <Clock size={17} />,           label: 'OT Tracker' },
@@ -43,43 +43,51 @@ function UserSidebar() {
     { to: '/calculator', icon: <Calculator size={17} />,      label: 'Salary Calc' },
   ];
   return (
-    <aside className="sidebar">
-      <SidebarBrand isAdmin={false} />
-      <nav className="sidebar-nav">
-        {navItems.map(({ to, icon, label }) => (
-          <NavLink key={to} to={to} end={to === '/'}
-            className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
-            {icon}{label}
-          </NavLink>
-        ))}
-      </nav>
-    </aside>
+    <>
+      {open && <div className="sidebar-overlay" onClick={onClose} />}
+      <aside className={`sidebar${open ? ' open' : ''}`}>
+        <SidebarBrand isAdmin={false} />
+        <nav className="sidebar-nav">
+          {navItems.map(({ to, icon, label }) => (
+            <NavLink key={to} to={to} end={to === '/'}
+              className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+              onClick={onClose}>
+              {icon}{label}
+            </NavLink>
+          ))}
+        </nav>
+      </aside>
+    </>
   );
 }
 
 // ── Admin Sidebar ─────────────────────────────────────────────────────────────
-function AdminSidebar() {
+function AdminSidebar({ open, onClose }) {
   const navItems = [
     { to: '/admin',       icon: <ShieldCheck size={17} />, label: 'Dashboard' },
     { to: '/admin/users', icon: <Users size={17} />,       label: 'Users' },
   ];
   return (
-    <aside className="sidebar">
-      <SidebarBrand isAdmin={true} />
-      <nav className="sidebar-nav">
-        {navItems.map(({ to, icon, label }) => (
-          <NavLink key={to} to={to} end
-            className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
-            {icon}{label}
-          </NavLink>
-        ))}
-      </nav>
-    </aside>
+    <>
+      {open && <div className="sidebar-overlay" onClick={onClose} />}
+      <aside className={`sidebar${open ? ' open' : ''}`}>
+        <SidebarBrand isAdmin={true} />
+        <nav className="sidebar-nav">
+          {navItems.map(({ to, icon, label }) => (
+            <NavLink key={to} to={to} end
+              className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+              onClick={onClose}>
+              {icon}{label}
+            </NavLink>
+          ))}
+        </nav>
+      </aside>
+    </>
   );
 }
 
 // ── Header ────────────────────────────────────────────────────────────────────
-function Header({ theme, onThemeToggle, pageTitle }) {
+function Header({ theme, onThemeToggle, pageTitle, onMenuToggle }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -90,16 +98,20 @@ function Header({ theme, onThemeToggle, pageTitle }) {
 
   return (
     <header className="header">
-      <span className="header-title">{pageTitle}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        {/* Hamburger — mobile only */}
+        <button className="menu-btn" onClick={onMenuToggle} aria-label="Open menu">
+          <Menu size={20} />
+        </button>
+        <span className="header-title">{pageTitle}</span>
+      </div>
       <div className="header-actions">
         {user && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: 'var(--text-muted)' }}>
             <User size={14} />
-            <span style={{ fontWeight: 600, color: 'var(--text)' }}>{user.name}</span>
+            <span style={{ fontWeight: 600, color: 'var(--text)' }} className="header-username">{user.name}</span>
             {user.role === 'admin' && (
-              <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 99, background: 'rgba(99,102,241,0.15)', color: 'var(--primary)', fontWeight: 700, textTransform: 'uppercase' }}>
-                Admin
-              </span>
+              <span className="admin-badge">Admin</span>
             )}
           </div>
         )}
@@ -126,13 +138,17 @@ const ADMIN_TITLES = {
 
 function AdminShell({ theme, onThemeToggle }) {
   const location  = useLocation();
+  const [menuOpen, setMenuOpen] = useState(false);
   const pageTitle = ADMIN_TITLES[location.pathname] || 'Admin';
+
+  // Close on route change
+  useEffect(() => { setMenuOpen(false); }, [location.pathname]);
 
   return (
     <div className="app-layout">
-      <AdminSidebar />
+      <AdminSidebar open={menuOpen} onClose={() => setMenuOpen(false)} />
       <div className="main-content">
-        <Header theme={theme} onThemeToggle={onThemeToggle} pageTitle={pageTitle} />
+        <Header theme={theme} onThemeToggle={onThemeToggle} pageTitle={pageTitle} onMenuToggle={() => setMenuOpen(o => !o)} />
         <main className="page-body">
           <Routes>
             <Route path="/admin"       element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
@@ -157,13 +173,16 @@ const USER_TITLES = {
 
 function UserShell({ theme, onThemeToggle }) {
   const location  = useLocation();
+  const [menuOpen, setMenuOpen] = useState(false);
   const pageTitle = USER_TITLES[location.pathname] || 'SHIRA OT Tracker';
+
+  useEffect(() => { setMenuOpen(false); }, [location.pathname]);
 
   return (
     <div className="app-layout">
-      <UserSidebar />
+      <UserSidebar open={menuOpen} onClose={() => setMenuOpen(false)} />
       <div className="main-content">
-        <Header theme={theme} onThemeToggle={onThemeToggle} pageTitle={pageTitle} />
+        <Header theme={theme} onThemeToggle={onThemeToggle} pageTitle={pageTitle} onMenuToggle={() => setMenuOpen(o => !o)} />
         <main className="page-body">
           <Routes>
             <Route path="/"           element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
@@ -207,17 +226,13 @@ function RootRouter({ theme, onThemeToggle }) {
   const path = location.pathname;
 
   if (AUTH_PATHS.includes(path)) return <AuthShell theme={theme} onThemeToggle={onThemeToggle} />;
-
-  // While auth is loading, show nothing (ProtectedRoute handles spinner)
   if (loading) return <UserShell theme={theme} onThemeToggle={onThemeToggle} />;
 
-  // Admin gets admin shell, redirect / to /admin
   if (user?.role === 'admin') {
     if (path === '/') return <Navigate to="/admin" replace />;
     return <AdminShell theme={theme} onThemeToggle={onThemeToggle} />;
   }
 
-  // Regular users get user shell, redirect /admin to /
   if (path.startsWith('/admin')) return <Navigate to="/" replace />;
   return <UserShell theme={theme} onThemeToggle={onThemeToggle} />;
 }

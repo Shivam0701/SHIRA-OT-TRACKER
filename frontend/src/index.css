@@ -850,34 +850,126 @@ tbody td {
 }
 
 /* ── Responsive ──────────────────────────────────────────── */
+
+/* Hamburger — hidden on desktop */
+.menu-btn {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 4px;
+  border-radius: 6px;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+.menu-btn:hover { background: var(--bg-hover); color: var(--text); }
+
+/* Admin badge */
+.admin-badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 99px;
+  background: rgba(99,102,241,0.15);
+  color: var(--primary);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+/* Sidebar overlay — hidden on desktop */
+.sidebar-overlay {
+  display: none;
+}
+
 @media (max-width: 768px) {
+  /* ── Layout ─── */
   :root { --sidebar-w: 0px; }
 
+  .menu-btn { display: flex; align-items: center; justify-content: center; }
+
   .sidebar {
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    z-index: 200;
     transform: translateX(-100%);
-    width: 220px;
+    width: 240px;
+    transition: transform 0.25s ease;
+  }
+  .sidebar.open { transform: translateX(0); box-shadow: var(--shadow-lg); }
+
+  .sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 199;
   }
 
-  .sidebar.open {
-    transform: translateX(0);
-    box-shadow: var(--shadow-lg);
+  .main-content { margin-left: 0; }
+
+  /* ── Header ─── */
+  .header { padding: 0 12px; }
+  .header-title { font-size: 15px; }
+  .header-username { display: none; }
+
+  /* ── Page body ─── */
+  .page-body { padding: 12px; }
+
+  /* ── Dashboard cards ─── */
+  .cards-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stat-card  { padding: 14px; }
+  .stat-card-value { font-size: 22px; }
+
+  /* ── Section cards ─── */
+  .section-card { padding: 14px; }
+
+  /* ── Tracker split layout ─── */
+  .page-split { flex-direction: column; }
+  .page-split-char { display: none; } /* hide character on mobile */
+  .page-split-form { width: 100%; }
+
+  /* ── Timer ─── */
+  .timer-display { font-size: 36px; }
+
+  /* ── Tables ─── */
+  table { font-size: 12px; }
+  th, td { padding: 8px 10px !important; }
+
+  /* ── History / OT History ─── */
+  .history-filters {
+    flex-direction: column;
+    gap: 8px;
   }
 
-  .main-content {
-    margin-left: 0;
+  /* ── Auth pages ─── */
+  .auth-card {
+    margin: 12px;
+    padding: 24px 18px;
+    width: auto;
+    max-width: 100%;
   }
+  .auth-page { padding: 0; align-items: flex-start; }
 
-  .page-body {
-    padding: 16px;
-  }
+  /* ── Summary grid ─── */
+  .summary-grid,
+  [style*="grid-template-columns"] { }
 
-  .cards-grid {
-    grid-template-columns: 1fr 1fr;
-  }
+  /* ── Admin panel table — horizontal scroll ─── */
+  .section-card > div[style*="overflow"] { overflow-x: auto; }
 
-  .timer-display {
-    font-size: 36px;
-  }
+  /* ── Salary calculator ─── */
+  .ci-card { padding: 16px; }
+  .ci-results-grid { grid-template-columns: 1fr !important; }
+
+  /* ── Buttons ─── */
+  .btn-lg { padding: 11px 20px; font-size: 14px; }
+}
+
+@media (max-width: 400px) {
+  .cards-grid { grid-template-columns: 1fr; }
+  .timer-display { font-size: 28px; }
+  .header-actions { gap: 6px; }
+  .admin-badge { display: none; }
 }
 
 /* ── Scrollbar ───────────────────────────────────────────── */
