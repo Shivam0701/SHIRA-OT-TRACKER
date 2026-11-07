@@ -21,11 +21,12 @@ const COOKIE_OPTS = {
 function signToken(user) {
   return jwt.sign(
     {
-      userId:       user.id,
-      email:        user.email,
-      name:         user.name,
-      role:         user.role,
-      needsProfile: user.authProvider === 'google' && !user.phone ? true : undefined,
+      userId: user.id,
+      email:  user.email,
+      name:   user.name,
+      role:   user.role,
+      // needsProfile only if Google user AND no companyName (truly optional, skip profile step)
+      // Actually — company is optional so never block with needsProfile
     },
     process.env.JWT_SECRET,
     { expiresIn: '7d' }
@@ -131,11 +132,10 @@ router.get('/me', (req, res) => {
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
     res.json({
-      id:           payload.userId,
-      name:         payload.name,
-      email:        payload.email,
-      role:         payload.role,
-      needsProfile: payload.needsProfile || false,
+      id:    payload.userId,
+      name:  payload.name,
+      email: payload.email,
+      role:  payload.role,
     });
   } catch {
     res.status(401).json({ error: 'Invalid token' });
@@ -181,22 +181,19 @@ router.post('/google/token', (req, res) => {
     const payload    = jwt.verify(token, process.env.JWT_SECRET);
     const freshToken = jwt.sign(
       {
-        userId:       payload.userId,
-        email:        payload.email,
-        name:         payload.name,
-        role:         payload.role,
-        needsProfile: payload.needsProfile || undefined,
+        userId: payload.userId,
+        email:  payload.email,
+        name:   payload.name,
+        role:   payload.role,
       },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
-    // Return token in body so frontend can store in localStorage
     sendAuth(res, 200, {
-      id:           payload.userId,
-      name:         payload.name,
-      email:        payload.email,
-      role:         payload.role,
-      needsProfile: payload.needsProfile || false,
+      id:    payload.userId,
+      name:  payload.name,
+      email: payload.email,
+      role:  payload.role,
     }, freshToken);
   } catch {
     res.status(401).json({ error: 'Invalid or expired token.' });

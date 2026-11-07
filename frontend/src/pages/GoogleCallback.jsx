@@ -24,11 +24,7 @@ export default function GoogleCallback() {
     api.post('/auth/google/token', { token })
       .then(res => {
         setUser(res.data, res.data.token);
-        if (res.data.needsProfile) {
-          navigate('/complete-profile', { replace: true });
-        } else {
-          navigate('/', { replace: true });
-        }
+        navigate('/', { replace: true });
       })
       .catch(() => {
         navigate('/login?error=google_failed', { replace: true });

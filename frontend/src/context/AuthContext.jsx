@@ -60,7 +60,7 @@ export function AuthProvider({ children }) {
     setUserState(null);
   };
 
-  const needsProfile = user?.needsProfile === true;
+  const needsProfile = false;
 
   return (
     <AuthContext.Provider value={{ user, loading, login, register, logout, setUser, needsProfile }}>
