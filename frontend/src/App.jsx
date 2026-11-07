@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Clock, History, Sun, Moon, LogOut, Calculator, User, ShieldCheck } from 'lucide-react';
-import { AuthProvider, useAuth } from './context/AuthContext.jsx';import ProtectedRoute from './components/ProtectedRoute.jsx';
+import React, { useState } from 'react';
+import { BrowserRouter, Routes, Route, NavLink, useLocation, useNavigate, Navigate } from 'react-router-dom';
+import { LayoutDashboard, Clock, History, Sun, Moon, LogOut, Calculator, User, ShieldCheck, Users } from 'lucide-react';
+import { AuthProvider, useAuth } from './context/AuthContext.jsx';
+import ProtectedRoute from './components/ProtectedRoute.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Tracker from './pages/Tracker.jsx';
 import OTHistory from './pages/OTHistory.jsx';
@@ -10,17 +11,16 @@ import Login from './pages/Login.jsx';
 import Register from './pages/Register.jsx';
 import GoogleCallback from './pages/GoogleCallback.jsx';
 import CompleteProfile from './pages/CompleteProfile.jsx';
+import AdminDashboard from './pages/AdminDashboard.jsx';
 import AdminPanel from './pages/AdminPanel.jsx';
 
-// ── Sidebar ───────────────────────────────────────────────────────────────────
-function Sidebar({ onClose }) {
-  const { user } = useAuth();
+// ── User Sidebar ──────────────────────────────────────────────────────────────
+function UserSidebar() {
   const navItems = [
     { to: '/',           icon: <LayoutDashboard size={17} />, label: 'Dashboard' },
     { to: '/tracker',    icon: <Clock size={17} />,           label: 'OT Tracker' },
     { to: '/history',    icon: <History size={17} />,         label: 'History' },
     { to: '/calculator', icon: <Calculator size={17} />,      label: 'Salary Calc' },
-    ...(user?.role === 'admin' ? [{ to: '/admin', icon: <ShieldCheck size={17} />, label: 'Admin' }] : []),
   ];
   return (
     <aside className="sidebar">
@@ -31,8 +31,31 @@ function Sidebar({ onClose }) {
       <nav className="sidebar-nav">
         {navItems.map(({ to, icon, label }) => (
           <NavLink key={to} to={to} end={to === '/'}
-            className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
-            onClick={onClose}>
+            className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
+            {icon}{label}
+          </NavLink>
+        ))}
+      </nav>
+    </aside>
+  );
+}
+
+// ── Admin Sidebar ─────────────────────────────────────────────────────────────
+function AdminSidebar() {
+  const navItems = [
+    { to: '/admin',       icon: <ShieldCheck size={17} />, label: 'Dashboard' },
+    { to: '/admin/users', icon: <Users size={17} />,       label: 'Users' },
+  ];
+  return (
+    <aside className="sidebar">
+      <div className="sidebar-logo">
+        <div className="sidebar-logo-text">⏱ SHIRA OT</div>
+        <div className="sidebar-logo-sub" style={{ color: 'var(--primary)', fontWeight: 700 }}>Admin</div>
+      </div>
+      <nav className="sidebar-nav">
+        {navItems.map(({ to, icon, label }) => (
+          <NavLink key={to} to={to} end
+            className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
             {icon}{label}
           </NavLink>
         ))}
@@ -59,6 +82,11 @@ function Header({ theme, onThemeToggle, pageTitle }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: 'var(--text-muted)' }}>
             <User size={14} />
             <span style={{ fontWeight: 600, color: 'var(--text)' }}>{user.name}</span>
+            {user.role === 'admin' && (
+              <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 99, background: 'rgba(99,102,241,0.15)', color: 'var(--primary)', fontWeight: 700, textTransform: 'uppercase' }}>
+                Admin
+              </span>
+            )}
           </div>
         )}
         <button className="theme-toggle" onClick={onThemeToggle}
@@ -76,31 +104,25 @@ function Header({ theme, onThemeToggle, pageTitle }) {
   );
 }
 
-const PAGE_TITLES = {
-  '/':           'Dashboard',
-  '/tracker':    'OT Tracker',
-  '/history':    'OT History',
-  '/calculator': 'Salary Calculator',
-  '/admin':      'Admin Panel',
+// ── Admin shell ───────────────────────────────────────────────────────────────
+const ADMIN_TITLES = {
+  '/admin':       'Admin Dashboard',
+  '/admin/users': 'User Management',
 };
 
-// ── App shell (authenticated layout) ─────────────────────────────────────────
-function AppShell({ theme, onThemeToggle }) {
+function AdminShell({ theme, onThemeToggle }) {
   const location  = useLocation();
-  const pageTitle = PAGE_TITLES[location.pathname] || 'SHIRA OT Tracker';
+  const pageTitle = ADMIN_TITLES[location.pathname] || 'Admin';
 
   return (
     <div className="app-layout">
-      <Sidebar />
+      <AdminSidebar />
       <div className="main-content">
         <Header theme={theme} onThemeToggle={onThemeToggle} pageTitle={pageTitle} />
         <main className="page-body">
           <Routes>
-            <Route path="/"           element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/tracker"    element={<ProtectedRoute><Tracker /></ProtectedRoute>} />
-            <Route path="/history"    element={<ProtectedRoute><OTHistory /></ProtectedRoute>} />
-            <Route path="/calculator" element={<ProtectedRoute><OTCalculator /></ProtectedRoute>} />
-            <Route path="/admin"      element={<ProtectedRoute><AdminPanel /></ProtectedRoute>} />
+            <Route path="/admin"       element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
+            <Route path="/admin/users" element={<ProtectedRoute><AdminPanel /></ProtectedRoute>} />
           </Routes>
         </main>
         <footer className="footer">
@@ -111,7 +133,40 @@ function AppShell({ theme, onThemeToggle }) {
   );
 }
 
-// ── Auth layout (no sidebar) ──────────────────────────────────────────────────
+// ── User shell ────────────────────────────────────────────────────────────────
+const USER_TITLES = {
+  '/':           'Dashboard',
+  '/tracker':    'OT Tracker',
+  '/history':    'OT History',
+  '/calculator': 'Salary Calculator',
+};
+
+function UserShell({ theme, onThemeToggle }) {
+  const location  = useLocation();
+  const pageTitle = USER_TITLES[location.pathname] || 'SHIRA OT Tracker';
+
+  return (
+    <div className="app-layout">
+      <UserSidebar />
+      <div className="main-content">
+        <Header theme={theme} onThemeToggle={onThemeToggle} pageTitle={pageTitle} />
+        <main className="page-body">
+          <Routes>
+            <Route path="/"           element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/tracker"    element={<ProtectedRoute><Tracker /></ProtectedRoute>} />
+            <Route path="/history"    element={<ProtectedRoute><OTHistory /></ProtectedRoute>} />
+            <Route path="/calculator" element={<ProtectedRoute><OTCalculator /></ProtectedRoute>} />
+          </Routes>
+        </main>
+        <footer className="footer">
+          Made by&nbsp;<a href="https://shiraai.in" target="_blank" rel="noopener noreferrer">SHIRA AI</a>
+        </footer>
+      </div>
+    </div>
+  );
+}
+
+// ── Auth shell ────────────────────────────────────────────────────────────────
 function AuthShell({ theme, onThemeToggle }) {
   return (
     <>
@@ -133,19 +188,31 @@ function AuthShell({ theme, onThemeToggle }) {
 const AUTH_PATHS = ['/login', '/register', '/auth/callback', '/complete-profile'];
 
 function RootRouter({ theme, onThemeToggle }) {
+  const { user, loading } = useAuth();
   const location = useLocation();
-  const isAuth   = AUTH_PATHS.includes(location.pathname);
-  return isAuth
-    ? <AuthShell theme={theme} onThemeToggle={onThemeToggle} />
-    : <AppShell  theme={theme} onThemeToggle={onThemeToggle} />;
+  const path = location.pathname;
+
+  if (AUTH_PATHS.includes(path)) return <AuthShell theme={theme} onThemeToggle={onThemeToggle} />;
+
+  // While auth is loading, show nothing (ProtectedRoute handles spinner)
+  if (loading) return <UserShell theme={theme} onThemeToggle={onThemeToggle} />;
+
+  // Admin gets admin shell, redirect / to /admin
+  if (user?.role === 'admin') {
+    if (path === '/') return <Navigate to="/admin" replace />;
+    return <AdminShell theme={theme} onThemeToggle={onThemeToggle} />;
+  }
+
+  // Regular users get user shell, redirect /admin to /
+  if (path.startsWith('/admin')) return <Navigate to="/" replace />;
+  return <UserShell theme={theme} onThemeToggle={onThemeToggle} />;
 }
 
-// ── Theme initialiser (runs once, outside React, to avoid flash) ──────────────
+// ── Theme init ────────────────────────────────────────────────────────────────
 const savedTheme = localStorage.getItem('ot-theme') || 'light';
 document.documentElement.setAttribute('data-theme', savedTheme);
 
 export default function App() {
-  // Single source of truth for theme — lives at the very top
   const [theme, setTheme] = useState(savedTheme);
 
   const toggleTheme = () => {
