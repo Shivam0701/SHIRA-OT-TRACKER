@@ -1,6 +1,7 @@
 const express  = require('express');
 const bcrypt   = require('bcryptjs');
 const jwt      = require('jsonwebtoken');
+const passport = require('passport');
 const { PrismaClient } = require('@prisma/client');
 const audit    = require('../lib/audit');
 
@@ -38,7 +39,6 @@ router.post('/register', async (req, res) => {
   if (!password)        return res.status(400).json({ error: 'Password is required.' });
   if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters.' });
 
-  // Basic email format check
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return res.status(400).json({ error: 'Invalid email address.' });
   }
@@ -48,9 +48,7 @@ router.post('/register', async (req, res) => {
     if (existing) return res.status(409).json({ error: 'An account with this email already exists.' });
 
     const hashed = await bcrypt.hash(password, 12);
-
-    // Assign admin role if this is the authorized admin email
-    const role = email.toLowerCase() === ADMIN_EMAIL ? 'admin' : 'user';
+    const role   = email.toLowerCase() === ADMIN_EMAIL ? 'admin' : 'user';
 
     const user = await prisma.user.create({
       data: {
@@ -128,5 +126,27 @@ router.get('/me', (req, res) => {
     res.status(401).json({ error: 'Invalid token' });
   }
 });
+
+// ── GET /api/auth/google — kick off OAuth flow ────────────────────────────────
+router.get('/google',
+  passport.authenticate('google', { scope: ['profile', 'email'], session: false })
+);
+
+// ── GET /api/auth/google/callback — Google redirects here ────────────────────
+router.get('/google/callback',
+  passport.authenticate('google', { session: false, failureRedirect: `${process.env.FRONTEND_URL}/login?error=google_failed` }),
+  async (req, res) => {
+    try {
+      // req.user is set by passport strategy (see server.js)
+      const token = signToken(req.user);
+      res.cookie('token', token, COOKIE_OPTS);
+      await audit('login_google', { actorId: req.user.id, ip: getIp(req), meta: { email: req.user.email } });
+      res.redirect(`${process.env.FRONTEND_URL}/`);
+    } catch (err) {
+      console.error('Google callback error:', err.message);
+      res.redirect(`${process.env.FRONTEND_URL}/login?error=google_failed`);
+    }
+  }
+);
 
 module.exports = router;
