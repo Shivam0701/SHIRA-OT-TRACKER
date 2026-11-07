@@ -147,10 +147,13 @@ router.get('/google/callback',
         return res.redirect(`${process.env.FRONTEND_URL}/login?error=google_failed`);
       }
       try {
-        const token = signToken(user);
-        res.cookie('token', token, COOKIE_OPTS);
+        // We cannot set a cross-origin cookie during a redirect (browser drops it).
+        // Instead pass a short-lived one-time token in the URL; the frontend
+        // exchanges it via POST /api/auth/google/token which sets the httpOnly
+        // cookie from the same origin as the XHR request.
+        const onetimeToken = signToken(user);
         await audit('login_google', { actorId: user.id, ip: getIp(req), meta: { email: user.email } });
-        res.redirect(`${process.env.FRONTEND_URL}/`);
+        res.redirect(`${process.env.FRONTEND_URL}/auth/callback?token=${onetimeToken}`);
       } catch (callbackErr) {
         console.error('[Google OAuth] Callback error:', callbackErr.message);
         res.redirect(`${process.env.FRONTEND_URL}/login?error=google_failed`);
@@ -158,5 +161,26 @@ router.get('/google/callback',
     })(req, res, next);
   }
 );
+
+// ── POST /api/auth/google/token — exchange one-time URL token for httpOnly cookie
+// Called by the frontend /auth/callback page immediately after Google redirect.
+router.post('/google/token', (req, res) => {
+  const { token } = req.body;
+  if (!token) return res.status(400).json({ error: 'Token required.' });
+
+  try {
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    // Re-sign a fresh 7-day cookie token
+    const freshToken = jwt.sign(
+      { userId: payload.userId, email: payload.email, name: payload.name, role: payload.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+    res.cookie('token', freshToken, COOKIE_OPTS);
+    res.json({ id: payload.userId, name: payload.name, email: payload.email, role: payload.role });
+  } catch {
+    res.status(401).json({ error: 'Invalid or expired token.' });
+  }
+});
 
 module.exports = router;

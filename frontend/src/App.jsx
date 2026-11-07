@@ -9,6 +9,7 @@ import OTHistory from './pages/OTHistory.jsx';
 import OTCalculator from './pages/Calculator.jsx';
 import Login from './pages/Login.jsx';
 import Register from './pages/Register.jsx';
+import GoogleCallback from './pages/GoogleCallback.jsx';
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 function Sidebar({ onClose }) {
@@ -131,8 +132,9 @@ function AuthShell() {
         {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
       </button>
       <Routes>
-        <Route path="/login"    element={<Login />} />
-        <Route path="/register" element={<Register />} />
+        <Route path="/login"         element={<Login />} />
+        <Route path="/register"      element={<Register />} />
+        <Route path="/auth/callback" element={<GoogleCallback />} />
       </Routes>
     </>
   );
@@ -141,7 +143,7 @@ function AuthShell() {
 // ── Root router ───────────────────────────────────────────────────────────────
 function RootRouter() {
   const location = useLocation();
-  const isAuth = ['/login', '/register'].includes(location.pathname);
+  const isAuth = ['/login', '/register', '/auth/callback'].includes(location.pathname);
   return isAuth ? <AuthShell /> : <AppShell />;
 }
 
