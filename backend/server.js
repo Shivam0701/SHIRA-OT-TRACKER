@@ -8,6 +8,7 @@ const { PrismaClient } = require('@prisma/client');
 
 const authRoutes    = require('./routes/auth');
 const sessionRoutes = require('./routes/sessions');
+const adminRoutes   = require('./routes/admin');
 
 const app    = express();
 const prisma = new PrismaClient();
@@ -55,7 +56,7 @@ passport.use(new GoogleStrategy(
       });
 
       if (user) {
-        // Link googleId + update avatar if they signed up via email before
+        // Link googleId + update avatar, preserve existing role
         user = await prisma.user.update({
           where: { id: user.id },
           data: {
@@ -64,6 +65,13 @@ passport.use(new GoogleStrategy(
             authProvider: 'google',
           },
         });
+        // Ensure admin role is applied if this is the admin email
+        if (email === ADMIN_EMAIL && user.role !== 'admin') {
+          user = await prisma.user.update({
+            where: { id: user.id },
+            data:  { role: 'admin' },
+          });
+        }
       } else {
         // New user — create account
         const role = email === ADMIN_EMAIL ? 'admin' : 'user';
@@ -96,6 +104,7 @@ app.get('/health', (_, res) => res.json({ status: 'ok', ts: new Date().toISOStri
 // ── Routes ────────────────────────────────────────────────────────────────────
 app.use('/api/auth',     authRoutes);
 app.use('/api/sessions', sessionRoutes);
+app.use('/api/admin',    adminRoutes);
 
 // ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((_, res) => res.status(404).json({ error: 'Route not found' }));

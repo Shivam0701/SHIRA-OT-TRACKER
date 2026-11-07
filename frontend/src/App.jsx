@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Clock, History, Sun, Moon, LogOut, Calculator, User } from 'lucide-react';
-import { AuthProvider, useAuth } from './context/AuthContext.jsx';
-import ProtectedRoute from './components/ProtectedRoute.jsx';
+import { LayoutDashboard, Clock, History, Sun, Moon, LogOut, Calculator, User, ShieldCheck } from 'lucide-react';
+import { AuthProvider, useAuth } from './context/AuthContext.jsx';import ProtectedRoute from './components/ProtectedRoute.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Tracker from './pages/Tracker.jsx';
 import OTHistory from './pages/OTHistory.jsx';
@@ -11,14 +10,17 @@ import Login from './pages/Login.jsx';
 import Register from './pages/Register.jsx';
 import GoogleCallback from './pages/GoogleCallback.jsx';
 import CompleteProfile from './pages/CompleteProfile.jsx';
+import AdminPanel from './pages/AdminPanel.jsx';
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 function Sidebar({ onClose }) {
+  const { user } = useAuth();
   const navItems = [
     { to: '/',           icon: <LayoutDashboard size={17} />, label: 'Dashboard' },
     { to: '/tracker',    icon: <Clock size={17} />,           label: 'OT Tracker' },
     { to: '/history',    icon: <History size={17} />,         label: 'History' },
     { to: '/calculator', icon: <Calculator size={17} />,      label: 'Salary Calc' },
+    ...(user?.role === 'admin' ? [{ to: '/admin', icon: <ShieldCheck size={17} />, label: 'Admin' }] : []),
   ];
   return (
     <aside className="sidebar">
@@ -79,6 +81,7 @@ const PAGE_TITLES = {
   '/tracker':    'OT Tracker',
   '/history':    'OT History',
   '/calculator': 'Salary Calculator',
+  '/admin':      'Admin Panel',
 };
 
 // ── App shell (authenticated layout) ─────────────────────────────────────────
@@ -97,6 +100,7 @@ function AppShell({ theme, onThemeToggle }) {
             <Route path="/tracker"    element={<ProtectedRoute><Tracker /></ProtectedRoute>} />
             <Route path="/history"    element={<ProtectedRoute><OTHistory /></ProtectedRoute>} />
             <Route path="/calculator" element={<ProtectedRoute><OTCalculator /></ProtectedRoute>} />
+            <Route path="/admin"      element={<ProtectedRoute><AdminPanel /></ProtectedRoute>} />
           </Routes>
         </main>
         <footer className="footer">
