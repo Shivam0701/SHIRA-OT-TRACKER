@@ -14,6 +14,9 @@ const app    = express();
 const prisma = new PrismaClient();
 const PORT   = process.env.PORT || 3001;
 
+// Trust Render/Vercel proxy so express-rate-limit reads the real client IP
+app.set('trust proxy', 1);
+
 // ── CORS ──────────────────────────────────────────────────────────────────────
 const allowedOrigins = [
   'http://localhost:5173',

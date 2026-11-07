@@ -21,12 +21,32 @@ const COOKIE_OPTS = {
 };
 
 // ── Rate limiters ─────────────────────────────────────────────────────────────
-const otpLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 min
-  max: 5,
-  message: { error: 'Too many requests. Please try again in 15 minutes.' },
+// Key by IP + email body so limits are per-user not per shared proxy IP
+function emailKey(req) {
+  const ip    = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || 'unknown';
+  const email = (req.body?.email || '').toLowerCase().trim();
+  return `${ip}:${email}`;
+}
+
+// OTP send — 5 sends per 10 min per email+IP
+const sendOtpLimiter = rateLimit({
+  windowMs:      10 * 60 * 1000,
+  max:           5,
+  keyGenerator:  emailKey,
+  message:       { error: 'Too many code requests. Please wait 10 minutes and try again.' },
   standardHeaders: true,
-  legacyHeaders: false,
+  legacyHeaders:  false,
+  skip: (req) => !req.body?.email, // don't count requests without email
+});
+
+// OTP verify — 10 attempts per 15 min per email+IP
+const verifyOtpLimiter = rateLimit({
+  windowMs:      15 * 60 * 1000,
+  max:           10,
+  keyGenerator:  emailKey,
+  message:       { error: 'Too many verification attempts. Please wait 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders:  false,
 });
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -106,7 +126,7 @@ async function verifyOtp(userId, otp, purpose) {
 }
 
 // ── POST /api/auth/send-otp  (register step 1) ────────────────────────────────
-router.post('/send-otp', otpLimiter, async (req, res) => {
+router.post('/send-otp', sendOtpLimiter, async (req, res) => {
   const { name, email, companyName } = req.body;
 
   if (!name?.trim())  return res.status(400).json({ error: 'Full name is required.' });
@@ -175,7 +195,7 @@ router.post('/send-otp', otpLimiter, async (req, res) => {
 });
 
 // ── POST /api/auth/verify-otp  (register step 2) ─────────────────────────────
-router.post('/verify-otp', otpLimiter, async (req, res) => {
+router.post('/verify-otp', verifyOtpLimiter, async (req, res) => {
   const { email, otp } = req.body;
   if (!email || !otp) return res.status(400).json({ error: 'Email and code are required.' });
 
@@ -297,7 +317,7 @@ router.get('/me', (req, res) => {
 });
 
 // ── POST /api/auth/forgot-password ───────────────────────────────────────────
-router.post('/forgot-password', otpLimiter, async (req, res) => {
+router.post('/forgot-password', sendOtpLimiter, async (req, res) => {
   const { email } = req.body;
   if (!email?.trim()) return res.status(400).json({ error: 'Email is required.' });
 
@@ -327,7 +347,7 @@ router.post('/forgot-password', otpLimiter, async (req, res) => {
 });
 
 // ── POST /api/auth/verify-reset-otp ──────────────────────────────────────────
-router.post('/verify-reset-otp', otpLimiter, async (req, res) => {
+router.post('/verify-reset-otp', verifyOtpLimiter, async (req, res) => {
   const { email, otp } = req.body;
   if (!email || !otp) return res.status(400).json({ error: 'Email and code are required.' });
 
