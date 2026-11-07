@@ -128,24 +128,34 @@ router.get('/me', (req, res) => {
 });
 
 // ── GET /api/auth/google — kick off OAuth flow ────────────────────────────────
+// state:false disables CSRF state param — required because we have no
+// express-session middleware (we use stateless JWT cookies instead).
 router.get('/google',
-  passport.authenticate('google', { scope: ['profile', 'email'], session: false })
+  passport.authenticate('google', { scope: ['profile', 'email'], session: false, state: false })
 );
 
 // ── GET /api/auth/google/callback — Google redirects here ────────────────────
 router.get('/google/callback',
-  passport.authenticate('google', { session: false, failureRedirect: `${process.env.FRONTEND_URL}/login?error=google_failed` }),
-  async (req, res) => {
-    try {
-      // req.user is set by passport strategy (see server.js)
-      const token = signToken(req.user);
-      res.cookie('token', token, COOKIE_OPTS);
-      await audit('login_google', { actorId: req.user.id, ip: getIp(req), meta: { email: req.user.email } });
-      res.redirect(`${process.env.FRONTEND_URL}/`);
-    } catch (err) {
-      console.error('Google callback error:', err.message);
-      res.redirect(`${process.env.FRONTEND_URL}/login?error=google_failed`);
-    }
+  (req, res, next) => {
+    passport.authenticate('google', { session: false, state: false }, async (err, user, info) => {
+      if (err) {
+        console.error('[Google OAuth] Strategy error:', err.message);
+        return res.redirect(`${process.env.FRONTEND_URL}/login?error=google_failed`);
+      }
+      if (!user) {
+        console.warn('[Google OAuth] No user returned:', info?.message || 'unknown reason');
+        return res.redirect(`${process.env.FRONTEND_URL}/login?error=google_failed`);
+      }
+      try {
+        const token = signToken(user);
+        res.cookie('token', token, COOKIE_OPTS);
+        await audit('login_google', { actorId: user.id, ip: getIp(req), meta: { email: user.email } });
+        res.redirect(`${process.env.FRONTEND_URL}/`);
+      } catch (callbackErr) {
+        console.error('[Google OAuth] Callback error:', callbackErr.message);
+        res.redirect(`${process.env.FRONTEND_URL}/login?error=google_failed`);
+      }
+    })(req, res, next);
   }
 );
 
