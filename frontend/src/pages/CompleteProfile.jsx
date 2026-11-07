@@ -26,7 +26,7 @@ export default function CompleteProfile() {
     try {
       const res = await postProfile(body);
       sessionStorage.removeItem('ot_setup_token');
-      setUser(res.data);
+      setUser(res.data, res.data.token);
       navigate('/', { replace: true });
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to save. Please try again.');

@@ -3,16 +3,38 @@ import api from '../api.js';
 
 const AuthContext = createContext(null);
 
+const TOKEN_KEY = 'ot_token';
+
+function saveToken(token)   { localStorage.setItem(TOKEN_KEY, token); }
+function clearToken()       { localStorage.removeItem(TOKEN_KEY); sessionStorage.removeItem('ot_setup_token'); }
+function getStoredToken()   { return localStorage.getItem(TOKEN_KEY); }
+
 export function AuthProvider({ children }) {
-  const [user, setUser]       = useState(null);
+  const [user, setUserState] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Persist user AND token together
+  const setUser = (userData, token) => {
+    if (!userData) {
+      clearToken();
+      setUserState(null);
+      return;
+    }
+    if (token) saveToken(token);
+    setUserState(userData);
+  };
+
   const checkAuth = useCallback(async () => {
+    if (!getStoredToken()) {
+      setLoading(false);
+      return;
+    }
     try {
       const res = await api.get('/auth/me');
-      setUser(res.data);
+      setUserState(res.data);
     } catch {
-      setUser(null);
+      clearToken();
+      setUserState(null);
     } finally {
       setLoading(false);
     }
@@ -22,22 +44,22 @@ export function AuthProvider({ children }) {
 
   const login = async (email, password) => {
     const res = await api.post('/auth/login', { email, password });
-    setUser(res.data);
+    setUser(res.data, res.data.token);
     return res.data;
   };
 
   const register = async (name, email, password, phone, companyName) => {
     const res = await api.post('/auth/register', { name, email, password, phone, companyName });
-    setUser(res.data);
+    setUser(res.data, res.data.token);
     return res.data;
   };
 
   const logout = async () => {
-    await api.post('/auth/logout');
-    setUser(null);
+    try { await api.post('/auth/logout'); } catch { /* ignore */ }
+    clearToken();
+    setUserState(null);
   };
 
-  // Google users who haven't filled phone yet have needsProfile=true in their JWT payload
   const needsProfile = user?.needsProfile === true;
 
   return (

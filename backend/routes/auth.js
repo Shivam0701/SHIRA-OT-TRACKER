@@ -10,6 +10,7 @@ const prisma = new PrismaClient();
 
 const ADMIN_EMAIL = 'connect.shiraai@gmail.com';
 
+// Keep cookie opts for backwards-compat (local dev still uses cookies as fallback)
 const COOKIE_OPTS = {
   httpOnly: true,
   secure:   process.env.NODE_ENV === 'production',
@@ -24,7 +25,6 @@ function signToken(user) {
       email:        user.email,
       name:         user.name,
       role:         user.role,
-      // Flag for Google users who haven't completed their profile (phone missing)
       needsProfile: user.authProvider === 'google' && !user.phone ? true : undefined,
     },
     process.env.JWT_SECRET,
@@ -34,6 +34,12 @@ function signToken(user) {
 
 function getIp(req) {
   return req.headers['x-forwarded-for']?.split(',')[0] || req.socket?.remoteAddress || null;
+}
+
+// Helper: send auth response with token both in body AND cookie (belt-and-suspenders)
+function sendAuth(res, statusCode, userData, token) {
+  res.cookie('token', token, COOKIE_OPTS);
+  res.status(statusCode).json({ ...userData, token });
 }
 
 // ── POST /api/auth/register ───────────────────────────────────────────────────
@@ -70,9 +76,8 @@ router.post('/register', async (req, res) => {
     });
 
     const token = signToken(user);
-    res.cookie('token', token, COOKIE_OPTS);
     await audit('register', { actorId: user.id, ip: getIp(req), meta: { email: user.email } });
-    res.status(201).json({ id: user.id, name: user.name, email: user.email, role: user.role });
+    sendAuth(res, 201, { id: user.id, name: user.name, email: user.email, role: user.role }, token);
   } catch (err) {
     console.error('Register error:', err.message);
     res.status(500).json({ error: 'Registration failed. Please try again.' });
@@ -103,9 +108,8 @@ router.post('/login', async (req, res) => {
     }
 
     const token = signToken(user);
-    res.cookie('token', token, COOKIE_OPTS);
     await audit('login_success', { actorId: user.id, ip: getIp(req) });
-    res.json({ id: user.id, name: user.name, email: user.email, role: user.role });
+    sendAuth(res, 200, { id: user.id, name: user.name, email: user.email, role: user.role }, token);
   } catch (err) {
     console.error('Login error:', err.message);
     res.status(500).json({ error: 'Login failed. Please try again.' });
@@ -141,8 +145,6 @@ router.get('/me', (req, res) => {
 });
 
 // ── GET /api/auth/google — kick off OAuth flow ────────────────────────────────
-// state:false disables CSRF state param — required because we have no
-// express-session middleware (we use stateless JWT cookies instead).
 router.get('/google',
   passport.authenticate('google', { scope: ['profile', 'email'], session: false, state: false })
 );
@@ -160,12 +162,9 @@ router.get('/google/callback',
         return res.redirect(`${process.env.FRONTEND_URL}/login?error=google_failed`);
       }
       try {
-        // We cannot set a cross-origin cookie during a redirect (browser drops it).
-        // Instead pass a short-lived one-time token in the URL; the frontend
-        // exchanges it via POST /api/auth/google/token which sets the httpOnly
-        // cookie from the same origin as the XHR request.
         const onetimeToken = signToken(user);
         await audit('login_google', { actorId: user.id, ip: getIp(req), meta: { email: user.email } });
+        // Pass token in URL — frontend stores it in localStorage via /auth/callback page
         res.redirect(`${process.env.FRONTEND_URL}/auth/callback?token=${onetimeToken}`);
       } catch (callbackErr) {
         console.error('[Google OAuth] Callback error:', callbackErr.message);
@@ -175,14 +174,13 @@ router.get('/google/callback',
   }
 );
 
-// ── POST /api/auth/google/token — exchange one-time URL token for httpOnly cookie
-// Called by the frontend /auth/callback page immediately after Google redirect.
+// ── POST /api/auth/google/token — validate one-time token, return fresh token ─
 router.post('/google/token', (req, res) => {
   const { token } = req.body;
   if (!token) return res.status(400).json({ error: 'Token required.' });
 
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    const payload    = jwt.verify(token, process.env.JWT_SECRET);
     const freshToken = jwt.sign(
       {
         userId:       payload.userId,
@@ -194,20 +192,20 @@ router.post('/google/token', (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
-    res.cookie('token', freshToken, COOKIE_OPTS);
-    res.json({
+    // Return token in body so frontend can store in localStorage
+    sendAuth(res, 200, {
       id:           payload.userId,
       name:         payload.name,
       email:        payload.email,
       role:         payload.role,
       needsProfile: payload.needsProfile || false,
-    });
+    }, freshToken);
   } catch {
     res.status(401).json({ error: 'Invalid or expired token.' });
   }
 });
 
-// ── POST /api/auth/complete-profile — for Google users adding company name ────
+// ── POST /api/auth/complete-profile ──────────────────────────────────────────
 router.post('/complete-profile', async (req, res) => {
   let token = req.cookies?.token;
   if (!token && req.headers.authorization?.startsWith('Bearer ')) {
@@ -227,20 +225,18 @@ router.post('/complete-profile', async (req, res) => {
   try {
     const user = await prisma.user.update({
       where: { id: payload.userId },
-      data: {
-        companyName: companyName?.trim() || null,
-      },
+      data:  { companyName: companyName?.trim() || null },
     });
 
-    // Re-issue token WITHOUT needsProfile flag
     const freshToken = jwt.sign(
       { userId: user.id, email: user.email, name: user.name, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
-    res.cookie('token', freshToken, COOKIE_OPTS);
     await audit('profile_complete', { actorId: user.id, ip: getIp(req), meta: { email: user.email } });
-    res.json({ id: user.id, name: user.name, email: user.email, role: user.role, needsProfile: false });
+    sendAuth(res, 200, {
+      id: user.id, name: user.name, email: user.email, role: user.role, needsProfile: false,
+    }, freshToken);
   } catch (err) {
     console.error('Complete profile error:', err.message);
     res.status(500).json({ error: 'Failed to save profile. Please try again.' });

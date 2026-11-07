@@ -23,11 +23,11 @@ export default function GoogleCallback() {
 
     api.post('/auth/google/token', { token })
       .then(res => {
-        setUser(res.data);
-        // Store token temporarily so CompleteProfile can use it as Bearer
-        // (httpOnly cookie may not propagate in time for the immediate next POST)
+        // setUser(userData, token) — stores token in localStorage
+        setUser(res.data, res.data.token);
         if (res.data.needsProfile) {
-          sessionStorage.setItem('ot_setup_token', token);
+          // Keep setup token for CompleteProfile bearer fallback
+          sessionStorage.setItem('ot_setup_token', res.data.token);
           navigate('/complete-profile', { replace: true });
         } else {
           navigate('/', { replace: true });
