@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   Users, Clock, RefreshCw, ChevronDown, ChevronUp,
-  ToggleLeft, ToggleRight, Trash2, Download, Pencil, X, Check,
+  ToggleLeft, ToggleRight, Trash2, Download, Pencil, X,
+  AlertTriangle, Mail, UserX,
 } from 'lucide-react';
 import api from '../api.js';
 
@@ -12,8 +13,8 @@ function fmt(mins) {
 
 const BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
 
-// ── Inline confirm delete button ──────────────────────────────────────────────
-function DeleteBtn({ onConfirm, small }) {
+// ── Inline confirm delete ──────────────────────────────────────────────────────
+function DeleteBtn({ onConfirm, small, label }) {
   const [confirm, setConfirm] = useState(false);
   if (confirm) return (
     <span style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
@@ -22,14 +23,15 @@ function DeleteBtn({ onConfirm, small }) {
     </span>
   );
   return (
-    <button onClick={() => setConfirm(true)} title="Delete"
-      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', display: 'flex', alignItems: 'center', padding: 0 }}>
+    <button onClick={() => setConfirm(true)} title={label || 'Delete'}
+      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: 4, padding: 0, fontSize: 12 }}>
       <Trash2 size={small ? 13 : 15} />
+      {label && <span>{label}</span>}
     </button>
   );
 }
 
-// ── Edit session modal ────────────────────────────────────────────────────────
+// ── Edit session modal ─────────────────────────────────────────────────────────
 function EditSessionModal({ session, onSave, onClose }) {
   const [form, setForm] = useState({
     date:       session.date,
@@ -82,15 +84,35 @@ function EditSessionModal({ session, onSave, onClose }) {
   );
 }
 
+// ── Stage badge ────────────────────────────────────────────────────────────────
+function StageBadge({ stage }) {
+  const map = {
+    awaiting_otp:  { label: 'Awaiting OTP',      bg: 'rgba(245,158,11,0.12)', color: '#d97706' },
+    otp_expired:   { label: 'OTP Expired',        bg: 'rgba(239,68,68,0.10)', color: 'var(--danger)' },
+    otp_verified:  { label: 'OTP ✓, No Password', bg: 'rgba(99,102,241,0.12)', color: 'var(--primary)' },
+  };
+  const { label, bg, color } = map[stage] || { label: stage, bg: 'var(--bg-input)', color: 'var(--text-muted)' };
+  return (
+    <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 99, background: bg, color, fontWeight: 600, whiteSpace: 'nowrap' }}>
+      {label}
+    </span>
+  );
+}
+
 // ── Main component ─────────────────────────────────────────────────────────────
 export default function AdminPanel() {
-  const [users, setUsers]         = useState([]);
-  const [loading, setLoading]     = useState(true);
-  const [expanded, setExpanded]   = useState(null);
-  const [sessions, setSessions]   = useState({});
-  const [toggling, setToggling]   = useState(null);
+  const [users, setUsers]             = useState([]);
+  const [loading, setLoading]         = useState(true);
+  const [expanded, setExpanded]       = useState(null);
+  const [sessions, setSessions]       = useState({});
+  const [toggling, setToggling]       = useState(null);
   const [editSession, setEditSession] = useState(null);
-  const [editUser, setEditUser]   = useState(null); // { id, field, value }
+
+  // Pending registrations state
+  const [pending, setPending]           = useState([]);
+  const [pendingLoading, setPendingLoad] = useState(false);
+  const [showPending, setShowPending]   = useState(false);
+  const [cleaning, setCleaning]         = useState(false);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -101,8 +123,18 @@ export default function AdminPanel() {
     finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { fetchUsers(); }, [fetchUsers]);
+  const fetchPending = useCallback(async () => {
+    setPendingLoad(true);
+    try {
+      const res = await api.get('/admin/pending');
+      setPending(res.data);
+    } catch (e) { console.error(e); }
+    finally { setPendingLoad(false); }
+  }, []);
 
+  useEffect(() => { fetchUsers(); fetchPending(); }, [fetchUsers, fetchPending]);
+
+  // ── Verified users actions ────────────────────────────────────────────────
   const loadSessions = async (userId) => {
     if (sessions[userId]) return;
     try {
@@ -111,7 +143,7 @@ export default function AdminPanel() {
     } catch { setSessions(s => ({ ...s, [userId]: [] })); }
   };
 
-  const toggleExpand = async (userId) => {
+  const toggleExpand = (userId) => {
     if (expanded === userId) { setExpanded(null); return; }
     setExpanded(userId);
     loadSessions(userId);
@@ -138,7 +170,6 @@ export default function AdminPanel() {
     try {
       await api.delete(`/admin/sessions/${sessionId}`);
       setSessions(s => ({ ...s, [userId]: s[userId].filter(x => x.id !== sessionId) }));
-      // Refresh user row stats
       const res = await api.get('/admin/users');
       setUsers(res.data);
     } catch { /* ignore */ }
@@ -151,9 +182,7 @@ export default function AdminPanel() {
 
   const exportUser = (userId) => {
     const token = localStorage.getItem('ot_token');
-    const url   = `${BASE}/admin/users/${userId}/export${token ? `?_token=${token}` : ''}`;
-    // Use fetch + blob so Bearer header can be sent
-    fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${BASE}/admin/users/${userId}/export`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.blob())
       .then(blob => {
         const a = document.createElement('a');
@@ -161,6 +190,23 @@ export default function AdminPanel() {
         a.download = `OT_export_user${userId}.xlsx`;
         a.click();
       });
+  };
+
+  // ── Pending actions ───────────────────────────────────────────────────────
+  const deletePending = async (id) => {
+    try {
+      await api.delete(`/admin/pending/${id}`);
+      setPending(p => p.filter(u => u.id !== id));
+    } catch { /* ignore */ }
+  };
+
+  const cleanupAll = async () => {
+    setCleaning(true);
+    try {
+      await api.delete('/admin/pending/cleanup');
+      await fetchPending();
+    } catch { /* ignore */ }
+    setCleaning(false);
   };
 
   const th = (label) => (
@@ -185,11 +231,88 @@ export default function AdminPanel() {
         />
       )}
 
+      {/* ── Pending Registrations section ─────────────────────────────────── */}
+      <div className="section-card" style={{ marginBottom: 20, borderColor: pending.length ? 'rgba(245,158,11,0.35)' : 'var(--border)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+          <button
+            onClick={() => { setShowPending(v => !v); if (!showPending) fetchPending(); }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, padding: 0 }}>
+            <AlertTriangle size={15} style={{ color: pending.length ? '#d97706' : 'var(--text-muted)' }} />
+            <span style={{ fontWeight: 700, fontSize: 14, color: pending.length ? '#d97706' : 'var(--text-muted)' }}>
+              Pending Registrations ({pending.length})
+            </span>
+            {showPending ? <ChevronUp size={14} style={{ color: 'var(--text-muted)' }} /> : <ChevronDown size={14} style={{ color: 'var(--text-muted)' }} />}
+          </button>
+
+          {pending.length > 0 && (
+            <button onClick={cleanupAll} disabled={cleaning}
+              style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 6, padding: '5px 12px', color: '#d97706', cursor: 'pointer', fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5, opacity: cleaning ? 0.6 : 1 }}>
+              <Trash2 size={12} /> {cleaning ? 'Cleaning…' : 'Clean up stale (>24h)'}
+            </button>
+          )}
+        </div>
+
+        {showPending && (
+          <div style={{ marginTop: 16 }}>
+            {pendingLoading ? (
+              <div style={{ color: 'var(--text-muted)', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <RefreshCw size={13} /> Loading…
+              </div>
+            ) : pending.length === 0 ? (
+              <div style={{ color: 'var(--text-muted)', fontSize: 13, padding: '12px 0' }}>
+                ✅ No pending registrations.
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                  <thead>
+                    <tr>{[th('Name'), th('Email'), th('Company'), th('Stage'), th('Started'), th('Action')]}</tr>
+                  </thead>
+                  <tbody>
+                    {pending.map(u => (
+                      <tr key={u.id} style={{ borderBottom: '1px solid var(--border)' }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+                        onMouseLeave={e => e.currentTarget.style.background = ''}>
+                        <td style={{ padding: '10px 14px', fontWeight: 600 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <UserX size={13} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                            {u.name}
+                          </div>
+                        </td>
+                        <td style={{ padding: '10px 14px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 5, color: 'var(--text-muted)', fontSize: 12 }}>
+                            <Mail size={11} />
+                            {u.email}
+                          </div>
+                        </td>
+                        <td style={{ padding: '10px 14px', color: 'var(--text-muted)', fontSize: 12 }}>{u.companyName || '—'}</td>
+                        <td style={{ padding: '10px 14px' }}><StageBadge stage={u.stage} /></td>
+                        <td style={{ padding: '10px 14px', color: 'var(--text-muted)', fontSize: 12, whiteSpace: 'nowrap' }}>
+                          {new Date(u.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        </td>
+                        <td style={{ padding: '10px 14px' }}>
+                          <DeleteBtn small label="Delete" onConfirm={() => deletePending(u.id)} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div style={{ marginTop: 10, fontSize: 11, color: 'var(--text-muted)' }}>
+                  ℹ️ "Clean up stale" removes records older than 24 hours. Individual delete removes immediately.
+                  Verified users are never affected.
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ── Verified Users section ─────────────────────────────────────────── */}
       <div className="section-card">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
           <div className="section-title" style={{ marginBottom: 0 }}>
             <Users size={16} style={{ color: 'var(--primary)' }} />
-            All Users ({users.length})
+            Verified Users ({users.length})
           </div>
           <button onClick={fetchUsers} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 6, padding: '6px 12px', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
             <RefreshCw size={12} /> Refresh
@@ -206,11 +329,9 @@ export default function AdminPanel() {
             <tbody>
               {users.map(u => (
                 <React.Fragment key={u.id}>
-                  {/* User row */}
                   <tr style={{ borderBottom: '1px solid var(--border)' }}
                     onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
                     onMouseLeave={e => e.currentTarget.style.background = ''}>
-
                     <td style={{ padding: '12px 14px', fontWeight: 600 }}>{u.name}</td>
                     <td style={{ padding: '12px 14px', color: 'var(--text-muted)', fontSize: 13 }}>{u.email}</td>
                     <td style={{ padding: '12px 14px', color: 'var(--text-muted)', fontSize: 13 }}>{u.companyName || '—'}</td>
@@ -239,23 +360,19 @@ export default function AdminPanel() {
                     </td>
                     <td style={{ padding: '12px 14px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        {/* View sessions */}
                         <button onClick={() => toggleExpand(u.id)} title="View sessions"
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 3, fontSize: 12, padding: 0 }}>
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', padding: 0 }}>
                           {expanded === u.id ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                         </button>
-                        {/* Export Excel */}
                         <button onClick={() => exportUser(u.id)} title="Export Excel"
                           style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--success)', display: 'flex', padding: 0 }}>
                           <Download size={15} />
                         </button>
-                        {/* Delete user */}
                         <DeleteBtn onConfirm={() => deleteUser(u.id)} />
                       </div>
                     </td>
                   </tr>
 
-                  {/* Expanded sessions row */}
                   {expanded === u.id && (
                     <tr>
                       <td colSpan={9} style={{ background: 'var(--bg-input)', padding: '0 14px 16px' }}>
@@ -267,7 +384,6 @@ export default function AdminPanel() {
                               {sessions[u.id]?.length ?? '…'} sessions
                             </span>
                           </div>
-
                           {!sessions[u.id] ? (
                             <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>Loading…</span>
                           ) : sessions[u.id].length === 0 ? (
